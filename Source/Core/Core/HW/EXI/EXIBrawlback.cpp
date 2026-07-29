@@ -773,19 +773,11 @@ void CEXIBrawlback::ProcessGameSettings(GameSettings* opponentGameSettings)
   }
   else
   {  // is host
-    // Copy the opponent's own character/costume choice into our p2 slot.
-    // The client's ASM code (fillOutGameSettings in Rollback_Hooks.cpp)
-    // always puts its own local choice at playerSettings[0] in what it
-    // sends, regardless of which slot it ends up playing as - the same
-    // way this function's own !isHost branch above reads the opponent's
-    // (host's) data from playerSettings[0], not [1]. Reading [1] here was
-    // always reading unset/default data, since the client never populates
-    // that index in what it sends - this was issue #73 ("costumes not
-    // syncing... loading in as the first secret costume").
-    mergedGameSettings.playerSettings[1].charID = opponentGameSettings->playerSettings[0].charID;
-    mergedGameSettings.playerSettings[1].charColor = opponentGameSettings->playerSettings[0].charColor;
-    mergedGameSettings.playerSettings[1].rumble = opponentGameSettings->playerSettings[0].rumble;
-    mergedGameSettings.playerSettings[1].colorFileIndex = opponentGameSettings->playerSettings[0].colorFileIndex;
+    // copy char from opponent p2 into our p2
+    mergedGameSettings.playerSettings[1].charID = opponentGameSettings->playerSettings[1].charID;
+    mergedGameSettings.playerSettings[1].charColor = opponentGameSettings->playerSettings[1].charColor;
+    mergedGameSettings.playerSettings[1].rumble = opponentGameSettings->playerSettings[1].rumble;
+    mergedGameSettings.playerSettings[1].colorFileIndex = opponentGameSettings->playerSettings[1].colorFileIndex;
 
     // set our stage based on the one the other client generated
     mergedGameSettings.stageID = opponentGameSettings->stageID;

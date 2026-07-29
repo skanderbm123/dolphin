@@ -1118,16 +1118,13 @@ void CEXIBrawlback::handleFindMatch(u8* payload)
   Matchmaking::MatchSearchSettings search;
   std::string connectCode;
 
-  // TODO: uncomment these lines when payload includes the actual mode and connect codes
-#ifdef REMOVE_THIS_WHEN_PAYLOAD_IS_SET
-  search.mode = (SlippiMatchmaking::OnlinePlayMode)payload[0];
+  // Payload layout (set by Rollback_Hooks.cpp's setNextAnyOkirakuCaseFive):
+  // byte 0 is the OnlinePlayMode, bytes 1-18 are the direct-connect code.
+  search.mode = (Matchmaking::OnlinePlayMode)payload[0];
   std::string shiftJisCode;
   shiftJisCode.insert(shiftJisCode.begin(), &payload[1], &payload[1] + 18);
   shiftJisCode.erase(std::find(shiftJisCode.begin(), shiftJisCode.end(), 0x00), shiftJisCode.end());
   connectCode = shiftJisCode;
-#else
-  search.mode = Matchmaking::OnlinePlayMode::UNRANKED;
-#endif
 
   switch (search.mode)
   {

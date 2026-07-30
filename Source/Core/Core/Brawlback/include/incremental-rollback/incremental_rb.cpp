@@ -583,7 +583,18 @@ namespace IncrementalRB
     u64 pageSize = Common::PageSize();
     // for parallelization, need to do the allocation stuff first since this needs to be serial.
     // Arenas are not threadsafe
-    for (u32 i = 0; i < savestate.changedPages.size(); i++)
+    //
+    // Only allocate for entries beyond what afterCopies already has. EvictSavestate()
+    // (which clears afterCopies and resets the arena) is skipped during resim, so
+    // without this, a savestate slot resimulated more than once before its next
+    // eviction would keep push_back-ing a fresh arena_alloc per changedPages entry
+    // on every call, permanently orphaning the previous round's allocations (never
+    // read again - RollbackSavestate only ever indexes up to changedPages.size())
+    // while still burning through the arena's fixed budget until arena_alloc starts
+    // returning nullptr. This keeps afterCopies sized to exactly match changedPages
+    // in both the fresh-capture and repeated-resim cases, reusing already-allocated
+    // slots in place instead of abandoning them.
+    for (u32 i = savestate.afterCopies.size(); i < savestate.changedPages.size(); i++)
     {
       savestate.afterCopies.push_back(reinterpret_cast<uintptr_t>(arena_alloc(&savestate.arena, pageSize)));
     }

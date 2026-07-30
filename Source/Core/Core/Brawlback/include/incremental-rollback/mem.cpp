@@ -138,7 +138,13 @@ int GetWrittenPages(char* base, u64 baseSize, std::vector<uintptr_t>& changedPag
   size_t writtenToPagesIndex = 0;
   size_t pageSize = Common::PageSize();
   auto base_pte = reinterpret_cast<uintptr_t>(Common::GetPageAddress(base, Common::PageSize()));
-  auto end_pte = reinterpret_cast<uintptr_t>(Common::GetPageAddress(base + baseSize, Common::PageSize()));
+  // -1: GetPageAddress rounds down, so passing (base + baseSize) directly would
+  // land one page past the buffer's actual last page whenever baseSize is an
+  // exact multiple of the page size (the common case for whole physical memory
+  // regions) - the inclusive "<=" loop below would then dirty-check/protect a
+  // page outside this buffer entirely. Using the last valid byte instead always
+  // resolves to the true last page, whether or not baseSize is page-aligned.
+  auto end_pte = reinterpret_cast<uintptr_t>(Common::GetPageAddress(base + baseSize - 1, Common::PageSize()));
 
   auto& system = Core::System::GetInstance();
   auto& memory = system.GetMemory();

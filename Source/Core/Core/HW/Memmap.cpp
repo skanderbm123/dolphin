@@ -697,6 +697,8 @@ void MemoryManager::Shutdown()
 {
   ShutdownFastmemArena();
 
+  IncrementalRB::Shutdown();
+
   m_is_initialized = false;
   for (const PhysicalMemoryRegion& region : m_physical_regions)
   {

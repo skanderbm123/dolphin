@@ -471,11 +471,12 @@ namespace IncrementalRB
         {
           size_t index = std::distance(std::begin(savestate.changedPages), itOrig);
           ssData = (u8*)savestate.afterCopies[index];
+          // NOTE: unlike the else-branch below, no upper-bound decrement here.
+          // it->lower() is contained (real data start, no +1 shift needed), so
+          // it->upper() - it->lower() is already the correct byte count whether
+          // or not the upper edge is truncated by excludeSet - verified empirically
+          // against boost::icl's actual bound semantics for closed intervals.
           size = it->upper() - it->lower();
-          if (!boost::icl::contains(*it, it->upper()))
-          {
-            size--;
-          }
         }
       }
       else

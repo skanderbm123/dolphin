@@ -483,14 +483,20 @@ void CEXIBrawlback::storeLocalInputs(PlayerFrameData* localPlayerFramedata)
   if (is_sequential_input)
   {
     // store local framedata
-    if (this->localPlayerFrameData.size() > FRAMEDATA_MAX_QUEUE_SIZE)
+    INFO_LOG_FMT(BRAWLBACK, "PUSHING PFD FOR FRAME {}\n", pFD->frame);
+    this->localPlayerFrameData.push_back(std::move(pFD));
+    // Trim *after* pushing (matches ProcessIndividualRemoteFrameData's
+    // equivalent trim for the remote queue, elsewhere in this file) -
+    // trimming before the push let this queue reach
+    // FRAMEDATA_MAX_QUEUE_SIZE + 1 elements every other call, since the
+    // old size==MAX case never triggered a pop before the new element
+    // was added.
+    while (this->localPlayerFrameData.size() > FRAMEDATA_MAX_QUEUE_SIZE)
     {
       // INFO_LOG_FMT(BRAWLBACK, "Popping local framedata for frame %u\n",
       // this->localPlayerFrameData.front()->frame);
       this->localPlayerFrameData.pop_front();
     }
-    INFO_LOG_FMT(BRAWLBACK, "PUSHING PFD FOR FRAME {}\n", pFD->frame);
-    this->localPlayerFrameData.push_back(std::move(pFD));
   }
   else
   {

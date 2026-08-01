@@ -102,6 +102,17 @@ void TimeSync::startGame(u8 numPlayers)
 
     // Reset ack timers
     this->ackTimers[i].clear();
+
+    // TimeSync is a single object living for the whole EXI device's
+    // lifetime (constructed once in CEXIBrawlback's ctor), not recreated
+    // per match - startGame() is the only per-match reset point. Without
+    // this, frameOffsetData (and its circular buffer index) would carry
+    // over stale samples from a previous match into this one, skewing
+    // calcTimeOffsetUs()'s trimmed-mean until the buffer naturally cycles
+    // through all its slots again. Matches Slippi's equivalent per-match
+    // reset (Ishiiruka's SlippiNetplayClient ctor resets frameOffsetData
+    // the same way).
+    this->frameOffsetData[i] = FrameOffsetData();
   }
 }
 
@@ -161,7 +172,17 @@ void TimeSync::ReceivedRemoteFramedata(s32 frame, u8 localPlayerIdx, bool hasGam
         this->frameOffsetData[localPlayerIdx].buf[this->frameOffsetData[localPlayerIdx].idx] = (s32)timeOffsetUs;
     }
 
-    this->frameOffsetData[localPlayerIdx].idx = (this->frameOffsetData[localPlayerIdx].idx + 1) & ONLINE_LOCKSTEP_INTERVAL;
+    // Was `& ONLINE_LOCKSTEP_INTERVAL` - a bitwise AND only correctly wraps
+    // a circular index when the interval is (power of 2) - 1, but
+    // ONLINE_LOCKSTEP_INTERVAL is 30, not e.g. 31. Confirmed against the
+    // real Slippi source this was ported from (Ishiiruka's
+    // SlippiNetplay.cpp, same constant value 30): it uses modulo, not AND.
+    // With AND, (idx + 1) & 30 collapses to a fixed point almost
+    // immediately regardless of starting idx (since bit 0 is always
+    // cleared), meaning this "circular" buffer never actually rotates
+    // through its slots after the first pass - most of the 30 offset
+    // samples used by calcTimeOffsetUs() go permanently stale.
+    this->frameOffsetData[localPlayerIdx].idx = (this->frameOffsetData[localPlayerIdx].idx + 1) % ONLINE_LOCKSTEP_INTERVAL;
 }
 
 

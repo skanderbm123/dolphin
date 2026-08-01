@@ -123,7 +123,7 @@ private:
   // -------------------------------
 
   // --- Rollback
-  bool isPredicting; // if we are using past inputs for this frame or not
+  bool isPredicting[MAX_NUM_PLAYERS] = {}; // if we are using past inputs for this frame or not, per player
   FrameData predictedInputs; // predicted inputs from some previous frame
   bu32 framesToAdvance = 1; // number of "frames" to advance the simulation on this frame
   bu32 latestConfirmedFrame = 0; // Tracks the last frame where we synchronized the game state with the remote client

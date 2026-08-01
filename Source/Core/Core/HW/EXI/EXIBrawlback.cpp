@@ -309,7 +309,7 @@ void CEXIBrawlback::updateSync(bu32& locFrame, bu8 playerIdx)
 
   bool isSynchronized = true;
 
-  if (isPredicting && this->shouldRollback(locFrame) && latestConfirmedFrame)
+  if (isPredicting[playerIdx] && this->shouldRollback(locFrame) && latestConfirmedFrame)
   {
     const PlayerFrameData playerPredictedInputs = predictedInputs.playerFrameDatas[playerIdx];
     INFO_LOG_FMT(BRAWLBACK,
@@ -398,7 +398,7 @@ PlayerFrameData CEXIBrawlback::getRemoteInputs(bu32& locFrame, u8 playerIdx, boo
     {
       finalRemoteInputs = *remoteFrameData;
       // INFO_LOG_FMT(BRAWLBACK, "Found remote inputs frame = %u\n", finalRemoteInputs.frame);
-      isPredicting = false;
+      isPredicting[playerIdx] = false;
     }
     else
     {
@@ -418,7 +418,7 @@ PlayerFrameData CEXIBrawlback::getRemoteInputs(bu32& locFrame, u8 playerIdx, boo
         INFO_LOG_FMT(BRAWLBACK, "Found predicted inputs for frame = {}\n", previousInputs->frame);
         finalRemoteInputs = *previousInputs;
         predictedInputs.playerFrameDatas[playerIdx] = *previousInputs;
-        isPredicting = true;
+        isPredicting[playerIdx] = true;
       }
     }
   }

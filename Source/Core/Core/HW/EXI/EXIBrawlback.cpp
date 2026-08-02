@@ -719,8 +719,15 @@ void CEXIBrawlback::ProcessRemoteFrameData(PlayerFrameData* framedatas, u8 numFr
 
 void CEXIBrawlback::ProcessFrameAck(FrameAck* frameAck)
 {
-  if (frameAck->playerIdx != this->localPlayerIdx)  // should be local player
-    ERROR_LOG_FMT(BRAWLBACK, "FrameAck playeridx is not local player idx! (This is wrong...)\n");
+  // Acks are sent via BroadcastPacket (ENet broadcast to every connected
+  // peer), not point-to-point, so in a 3-4 player match every peer receives
+  // every other peer's acks too - only the one whose framedata is actually
+  // being acked (frameAck->playerIdx) should act on it. This branch is
+  // routine, expected traffic in that case, not an error condition - only
+  // logged at INFO so real problems aren't buried under per-frame noise
+  // from every non-matching peer in every >2 player match.
+  if (frameAck->playerIdx != this->localPlayerIdx)
+    INFO_LOG_FMT(BRAWLBACK, "Ignoring FrameAck for player {} (not us)\n", (unsigned int)frameAck->playerIdx);
   else
     this->timeSync->ProcessFrameAck(frameAck);
 }

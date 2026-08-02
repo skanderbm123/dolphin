@@ -1144,6 +1144,11 @@ void CEXIBrawlback::handleStartMatch(u8* payload)
 {
   // if (!payload) return;
   std::memcpy(&gameSettings, payload, sizeof(GameSettings));
+  // payload is raw big-endian bytes as written by the game's fillOutGameSettings()
+  // (Rollback_Hooks.cpp) - every other cross-endian EXI payload in this file gets
+  // swapped immediately on receipt (see handleLocalPadData's
+  // SwapPlayerFrameDataEndianness call), but this one never was.
+  SwapGameSettingsEndianness(gameSettings);
 }
 
 #include "../../Externals/curl/curl/include/curl/curl.h"

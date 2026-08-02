@@ -155,6 +155,18 @@ namespace Brawlback {
         fd.randomSeed = swap_endian(fd.randomSeed);
         fd.skipFrame = swap_endian(fd.skipFrame);
     }
+    // Counterpart to Rollback_Hooks.cpp's FixGameSettingsEndianness (brawlback-asm) -
+    // must swap exactly the same fields (stageID, randomSeed, nametag) since that's
+    // everything in GameSettings/PlayerSettings/BrawlbackControls wider than 1 byte.
+    inline void SwapGameSettingsEndianness(GameSettings& settings) {
+        settings.stageID = swap_endian(settings.stageID);
+        settings.randomSeed = swap_endian(settings.randomSeed);
+        for (int i = 0; i < MAX_NUM_PLAYERS; i++) {
+            for (int f = 0; f < NAMETAG_SIZE; f++) {
+                settings.playerSettings[i].nametag[f] = swap_endian(settings.playerSettings[i].nametag[f]);
+            }
+        }
+    }
 
     inline void PrintSyncData(const SyncData& data) {
         INFO_LOG_FMT(

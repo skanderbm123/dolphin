@@ -109,7 +109,9 @@ namespace Brawlback
                           p1.pad.cStickX == p2.pad.cStickX &&
                           p1.pad.cStickY == p2.pad.cStickY;
             bool triggers = p1.pad.LAnalogue == p2.pad.LAnalogue &&
-                            p1.pad.RAnalogue == p2.pad.RAnalogue;
+                            p1.pad.RAnalogue == p2.pad.RAnalogue &&
+                            p1.pad.LTrigger == p2.pad.LTrigger &&
+                            p1.pad.RTrigger == p2.pad.RTrigger;
             return _buttons && buttons && holdButtons && rapidFireButtons && releasedButtons && newPressedButtons && sticks && triggers;
         }
 

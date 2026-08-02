@@ -212,7 +212,8 @@ namespace Brawlback {
         bool rapidFireButtons = p1.rapidFireButtons == p2.rapidFireButtons;
         bool releasedButtons = p1.releasedButtons == p2.releasedButtons;
         bool newPressedButtons = p1.newPressedButtons == p2.newPressedButtons;
-        bool triggers = p1.LAnalogue == p2.LAnalogue && p1.RAnalogue == p2.RAnalogue;
+        bool triggers = p1.LAnalogue == p2.LAnalogue && p1.RAnalogue == p2.RAnalogue &&
+                        p1.LTrigger == p2.LTrigger && p1.RTrigger == p2.RTrigger;
         bool analogSticks = p1.stickX == p2.stickX && p1.stickY == p2.stickY;
         bool cSticks = p1.cStickX == p2.cStickX && p1.cStickY == p2.cStickY;
         return _buttons && buttons && holdButtons && rapidFireButtons && releasedButtons && newPressedButtons && analogSticks && cSticks && triggers;

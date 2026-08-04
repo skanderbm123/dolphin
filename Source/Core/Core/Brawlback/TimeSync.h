@@ -35,7 +35,14 @@ public:
 
     int getMinAckFrame(u8 numPlayers);
 
-    bool getIsConnectionStalled() { return isConnectionStalled; }
+    // isConnectionStalled is written from shouldStallFrame (CPU/emulation
+    // thread) and read from here, which is called from the netplay
+    // thread's NetplayThreadFunc loop condition - needs the same lock
+    // shouldStallFrame takes when writing it.
+    bool getIsConnectionStalled() {
+        std::lock_guard<std::recursive_mutex> lock(ackTimersMutex);
+        return isConnectionStalled;
+    }
 
     s32 calcTimeOffsetUs(u8 numPlayers);
 private:
@@ -53,7 +60,10 @@ private:
     std::array<std::deque<FrameTiming>, MAX_NUM_PLAYERS> ackTimers = {};
     u64 pingUs[MAX_NUM_PLAYERS] = {};
     
-    std::mutex ackTimersMutex;
+    // recursive: shouldStallFrame takes this lock and then calls
+    // calcTimeOffsetUs, which also takes it, on the same thread - a plain
+    // std::mutex would self-deadlock there.
+    std::recursive_mutex ackTimersMutex;
 
 };
 }

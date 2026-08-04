@@ -16,6 +16,12 @@ TimeSync::TimeSync() {
 }
 
 bool TimeSync::shouldStallFrame(s32 currentFrame, s32 latestRemoteFrame, u8 numPlayers) {
+    // Guards isConnectionStalled/stallFrameCount/isSkipping/framesToSkip,
+    // all written here (CPU/emulation thread, via handleLocalPadData) and
+    // isConnectionStalled specifically also read cross-thread from
+    // getIsConnectionStalled() (netplay thread). Recursive because this
+    // function calls calcTimeOffsetUs below, which takes the same lock.
+    std::lock_guard<std::recursive_mutex> lock(this->ackTimersMutex);
     if (this->isConnectionStalled) return false;
 
     s32 frameDiff = currentFrame - latestRemoteFrame;
@@ -92,6 +98,12 @@ bool TimeSync::shouldStallFrame(s32 currentFrame, s32 latestRemoteFrame, u8 numP
 
 void TimeSync::startGame(u8 numPlayers)
 {
+  // Writes lastFrameTimings/lastFrameAcked/ackTimers/frameOffsetData, all
+  // of which are read/written from the netplay thread elsewhere in this
+  // class (ReceivedRemoteFramedata, ProcessFrameAck) - needs the same
+  // lock those use, since this runs on the CPU/emulation thread and
+  // nothing otherwise orders it against a same-time incoming packet.
+  std::lock_guard<std::recursive_mutex> lock(this->ackTimersMutex);
   for (int i = 0; i < numPlayers; i++)
   {
     FrameTiming timing;
@@ -120,7 +132,7 @@ void TimeSync::startGame(u8 numPlayers)
 void TimeSync::TimeSyncUpdate(u32 frame, u8 numPlayers, u8 localPlayerIdx) { // frame with delay
     u64 currentTime = Common::Timer::NowUs();
     {   // store the time that we sent framedata
-        std::lock_guard<std::mutex> lock(this->ackTimersMutex);
+        std::lock_guard<std::recursive_mutex> lock(this->ackTimersMutex);
         for (int i = 0; i < numPlayers; i++) {
             FrameTiming timing;
             timing.frame = frame;
@@ -148,6 +160,13 @@ void TimeSync::TimeSyncUpdate(u32 frame, u8 numPlayers, u8 localPlayerIdx) { // 
 
 // getting frame with delay
 void TimeSync::ReceivedRemoteFramedata(s32 frame, u8 localPlayerIdx, bool hasGameStarted) {
+    // Reads lastFrameTimings/pingUs (written on the CPU thread by
+    // TimeSyncUpdate/ProcessFrameAck) and writes frameOffsetData (also
+    // touched by startGame on the CPU thread and calcTimeOffsetUs's
+    // reads) - this function itself runs on the netplay thread
+    // (ProcessRemoteFrameData -> here), so all of this was previously an
+    // unguarded cross-thread race.
+    std::lock_guard<std::recursive_mutex> lock(this->ackTimersMutex);
     s64 curTime = (s64)Common::Timer::NowUs();
     // update frame timing/offsets for time sync logic
     
@@ -201,7 +220,7 @@ void TimeSync::ReceivedRemoteFramedata(s32 frame, u8 localPlayerIdx, bool hasGam
 
 // with delay
 void TimeSync::ProcessFrameAck(FrameAck* frameAck) {
-    std::lock_guard<std::mutex> lock(this->ackTimersMutex);
+    std::lock_guard<std::recursive_mutex> lock(this->ackTimersMutex);
     u8 localPlayerIdx = frameAck->playerIdx; // local player idx
     int frame = frameAck->frame; // this is with frame delay
 
@@ -251,6 +270,10 @@ void TimeSync::ProcessFrameAck(FrameAck* frameAck) {
 
 
 int TimeSync::getMinAckFrame(u8 numPlayers) {
+    // lastFrameAcked is written under this lock in ProcessFrameAck (netplay
+    // thread); this function is called from the CPU/emulation thread
+    // (handleSendInputs) and was reading it with no lock at all.
+    std::lock_guard<std::recursive_mutex> lock(this->ackTimersMutex);
     int minAckFrame = 0;
     for (int i = 0; i < numPlayers; i++) {
         //INFO_LOG_FMT(BRAWLBACK, "lastFrameAcked[{}]: {}", i, this->lastFrameAcked[i]);
@@ -265,6 +288,11 @@ int TimeSync::getMinAckFrame(u8 numPlayers) {
 // SLIPPI LOGIC
 // discards highest and lowest offsets, then averages the rest
 s32 TimeSync::calcTimeOffsetUs(u8 numPlayers) {
+    // frameOffsetData is written by ReceivedRemoteFramedata (netplay
+    // thread) and startGame (CPU thread); this reads it from the CPU
+    // thread (directly, and via shouldStallFrame, which already holds
+    // this same recursive lock when it calls in).
+    std::lock_guard<std::recursive_mutex> lock(this->ackTimersMutex);
     bool empty = true;
 	for (int i = 0; i < numPlayers; i++)
 	{

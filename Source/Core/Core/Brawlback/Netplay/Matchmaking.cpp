@@ -686,7 +686,14 @@ void Matchmaking::handleMatchmaking()
         //m_allowedStages.push_back(0x2A); // Yoshi's Story
 		m_allowedStages.push_back(0x1C); // Wario land
         //m_allowedStages.push_back(0x2D); // Dream land
-        m_allowedStages.push_back(0x2E); // PS2
+        m_allowedStages.push_back(0x14); // PS2 (Pokemon Stadium 2 - Stages::PokemonStadium2/Stages::Stadium in
+                                          // gm_lib.h, ST_STADIUM module 59, the stage StageFixes.cpp's
+                                          // FreezeStadiumTransform actually hooks. 0x2E is a DIFFERENT stage -
+                                          // Stages::PokemonStadium/DxPStadium, the Melee-imported classic
+                                          // Pokemon Stadium in the separate, unfixed ST_DXPSTADIUM module 83 -
+                                          // which has no transformation-freeze fix at all, so a match landing
+                                          // on it via this fallback list would hit the exact rollback desync
+                                          // the Stadium fix exists to prevent, just on the wrong stage.
         //m_allowedStages.push_back(0x23); // Green hill zone
         //m_allowedStages.push_back(0x21); // Smashville
 

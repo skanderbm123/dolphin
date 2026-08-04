@@ -23,7 +23,11 @@
 namespace fs = std::filesystem;
 // --- Mutexes
 std::mutex read_queue_mutex = std::mutex();
-std::mutex remotePadQueueMutex = std::mutex();
+// recursive: isRollbackMode/getRemoteInputs/updateSync/GetLatestRemoteFrame
+// all read remotePlayerFrameData and can call into each other (getRemoteInputs
+// -> isRollbackMode, updateSync -> shouldRollback -> GetLatestRemoteFrame),
+// so each needs to be able to take this lock even when a caller already holds it.
+std::recursive_mutex remotePadQueueMutex = std::recursive_mutex();
 // -------------------------------
 void writeToFile(std::string filename, uint8_t* ptr, size_t len)
 {
@@ -304,6 +308,11 @@ void CEXIBrawlback::updateSync(bu32& locFrame, bu8 playerIdx)
 {
   // https://gist.github.com/rcmagic/f8d76bca32b5609e85ab156db38387e9#file-rollbackpseudocode-txt-L46
 
+  // See isRollbackMode's comment - reads remotePlayerFrameData both
+  // directly (below) and via GetLatestRemoteFrame/shouldRollback, all of
+  // which take the same recursive_mutex.
+  std::lock_guard<std::recursive_mutex> lock(remotePadQueueMutex);
+
   bu32 remoteFrame = this->GetLatestRemoteFrame();
   bs32 finalFrame = MIN(remoteFrame, locFrame);
 
@@ -376,6 +385,10 @@ bool CEXIBrawlback::shouldRollback(bu32 locFrame)
 
 bool CEXIBrawlback::isRollbackMode(bu32 locFrame, u8 playerIdx)
 {
+  // remotePlayerFrameData is written from the netplay thread
+  // (ProcessIndividualRemoteFrameData, under this same lock) but read here
+  // from the CPU/emulation thread - needs the lock too.
+  std::lock_guard<std::recursive_mutex> lock(remotePadQueueMutex);
   return
       ROLLBACK_IMPL &&  // delay-based/rollback toggle
          locFrame >
@@ -388,7 +401,11 @@ bool CEXIBrawlback::isRollbackMode(bu32 locFrame, u8 playerIdx)
 PlayerFrameData CEXIBrawlback::getRemoteInputs(bu32& locFrame, u8 playerIdx, bool& skipFrame)
 {
   PlayerFrameData finalRemoteInputs;
-  
+
+  // See isRollbackMode's comment - reads remotePlayerFrameData directly
+  // below and via isRollbackMode, both under the same recursive_mutex.
+  std::lock_guard<std::recursive_mutex> lock(remotePadQueueMutex);
+
   if (isRollbackMode(locFrame, playerIdx))
   {
     const PlayerFrameData* remoteFrameData =
@@ -566,6 +583,10 @@ void CEXIBrawlback::handleSendInputs(u32 frame)
 
 bu32 CEXIBrawlback::GetLatestRemoteFrame()
 {
+  // See isRollbackMode's comment - same cross-thread remotePlayerFrameData
+  // access, same lock needed. This may be reached with the lock already
+  // held (updateSync -> shouldRollback -> here), hence recursive_mutex.
+  std::lock_guard<std::recursive_mutex> lock(remotePadQueueMutex);
   bu32 lowestFrame = 0;
   for (int i = 0; i < this->numPlayers; i++)
   {
@@ -693,7 +714,7 @@ void CEXIBrawlback::ProcessRemoteFrameData(PlayerFrameData* framedatas, u8 numFr
 
   if (numFramedatas > 0)
   {
-    std::lock_guard<std::mutex> lock(remotePadQueueMutex);
+    std::lock_guard<std::recursive_mutex> lock(remotePadQueueMutex);
 
     std::stringstream s;
     s << "Received " << numFramedatas << " framedatas. [";

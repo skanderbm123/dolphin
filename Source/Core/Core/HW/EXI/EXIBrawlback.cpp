@@ -561,7 +561,7 @@ void CEXIBrawlback::handleSendInputs(u32 frame)
   this->netplay->BroadcastPlayerFrameDataWithPastFrames(this->server, localFramedatas);
 
   u32 mostRecentFrame = this->localPlayerFrameData.back()->frame;  // current frame with delay
-  this->timeSync->TimeSyncUpdate(mostRecentFrame, this->numPlayers);
+  this->timeSync->TimeSyncUpdate(mostRecentFrame, this->numPlayers, (u8)this->localPlayerIdx);
 }
 
 bu32 CEXIBrawlback::GetLatestRemoteFrame()

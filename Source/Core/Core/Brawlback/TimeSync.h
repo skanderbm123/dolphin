@@ -18,7 +18,7 @@ public:
     // ---- Funcs that are called by game events
 
     // called right after sending local inputs over net
-    void TimeSyncUpdate(u32 frame, u8 numPlayers);
+    void TimeSyncUpdate(u32 frame, u8 numPlayers, u8 localPlayerIdx);
 
     // called when we receive remote inputs
     void ReceivedRemoteFramedata(s32 frame, u8 playerIdx, bool hasGameStarted);

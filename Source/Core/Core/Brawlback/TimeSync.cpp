@@ -117,7 +117,7 @@ void TimeSync::startGame(u8 numPlayers)
 }
 
 // called when sending inputs
-void TimeSync::TimeSyncUpdate(u32 frame, u8 numPlayers) { // frame with delay
+void TimeSync::TimeSyncUpdate(u32 frame, u8 numPlayers, u8 localPlayerIdx) { // frame with delay
     u64 currentTime = Common::Timer::NowUs();
     {   // store the time that we sent framedata
         std::lock_guard<std::mutex> lock(this->ackTimersMutex);
@@ -127,7 +127,20 @@ void TimeSync::TimeSyncUpdate(u32 frame, u8 numPlayers) { // frame with delay
             timing.timeUs = currentTime;
 
             this->lastFrameTimings[i] = timing;
-            this->ackTimers[i].push_back(timing);
+            // ProcessFrameAck only ever pops ackTimers[localPlayerIdx] (every
+            // ack that reaches it is about our own sent inputs - see
+            // CONTINUATION.md's ack-tracking writeup for the full trace
+            // against Slippi's real source). Pushing to every other index
+            // here left those deques growing unbounded for the entire match
+            // with nothing ever draining them - a confirmed leak in every
+            // match, not just 3-4 player ones. Restricting the push to the
+            // one index that's ever read is behavior-preserving (nothing
+            // else reads the other slots) and stops the leak without
+            // touching the deeper per-remote-peer indexing redesign this
+            // subsystem actually needs for real 3-4 player support.
+            if (i == localPlayerIdx) {
+                this->ackTimers[i].push_back(timing);
+            }
         }
     }
 }

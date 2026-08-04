@@ -35,11 +35,29 @@ void BrawlbackNetplay::BroadcastPacket(const sf::Packet& packet, int enet_flag, 
 }
 
 void BrawlbackNetplay::FlushAsyncQueue(ENetHost* server) {
-    while (!async_queue.empty())
+    // async_queue is pushed to from SendAsync (holding async_send_packet_mutex,
+    // called from the CPU/emulation thread via handleSendInputs roughly every
+    // frame) and popped here (called continuously from the dedicated netplay
+    // thread's NetplayThreadFunc loop) - two real OS threads. This previously
+    // had no locking at all on the pop side, a genuine unguarded data race on
+    // a std::deque being mutated concurrently from both threads - undefined
+    // behavior that could plausibly explain sporadic, hard-to-reproduce
+    // netplay crashes. Lock scoped tightly around just the deque access,
+    // mirroring SendAsync's own pattern, so BroadcastPacket (which does the
+    // actual enet_host_broadcast call) runs without holding the lock.
+    while (true)
     {
-        BrawlbackNetPacket* packet = async_queue.front().get();
+        std::unique_ptr<BrawlbackNetPacket> packet;
+        {
+            std::lock_guard<std::recursive_mutex> lock(async_send_packet_mutex);
+            if (async_queue.empty())
+            {
+                break;
+            }
+            packet = std::move(async_queue.front());
+            async_queue.pop_front();
+        }
         BroadcastPacket(packet->first, packet->second, server);
-        async_queue.pop_front();
     }
 }
 

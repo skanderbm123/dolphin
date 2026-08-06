@@ -20,6 +20,21 @@ void BrawlbackPane::CreateWidgets()
   m_delay_frames->setMinimum(1);
   m_delay_frames->setMaximum(7);
 
+  // m_delayFrames (this control) has zero other references anywhere in
+  // Core/ - the actual input delay used throughout the real netcode is
+  // FRAME_DELAY, a compile-time constant shared with the ASM side via
+  // brawlback-common/BrawlbackConstants.h. Moving this spinbox previously
+  // did nothing at all, silently, which is worse than not having the
+  // control - disabling it and explaining why beats leaving users to
+  // believe they've tuned something that can't be changed from here.
+  const QString delayFramesDisabledTooltip =
+      tr("Not yet implemented: the actual input delay is a fixed value shared "
+         "with the game itself and can't be changed from this setting yet.");
+  m_delay_frames_label->setEnabled(false);
+  m_delay_frames->setEnabled(false);
+  m_delay_frames_label->setToolTip(delayFramesDisabledTooltip);
+  m_delay_frames->setToolTip(delayFramesDisabledTooltip);
+
   m_force_custom_netplay_port = new QCheckBox(tr("Force Netplay Port"));
   m_custom_netplay_port = new QSpinBox();
   m_custom_netplay_port->setMinimum(1);
@@ -41,6 +56,22 @@ void BrawlbackPane::CreateWidgets()
   m_replay_folder_label = new QLabel(tr("Replay Location:"));
   m_replays_folder = new QLineEdit();
   m_browse_replays_folder = new QPushButton(tr("..."));
+
+  // Same situation as delay frames above: m_brawlbackSaveReplays /
+  // m_brawlbackReplayDir have zero other references in Core/ - Brawlback
+  // hasn't defined a replay file format yet, so nothing ever reads these.
+  // The whole group is disabled rather than removed so the settings persist
+  // and the group can be re-enabled with no UI changes once replays exist.
+  const QString replaysDisabledTooltip =
+      tr("Not yet implemented: Brawlback doesn't support saving replays yet.");
+  m_save_replays->setEnabled(false);
+  m_replay_folder_label->setEnabled(false);
+  m_replays_folder->setEnabled(false);
+  m_browse_replays_folder->setEnabled(false);
+  m_save_replays->setToolTip(replaysDisabledTooltip);
+  m_replay_folder_label->setToolTip(replaysDisabledTooltip);
+  m_replays_folder->setToolTip(replaysDisabledTooltip);
+  m_browse_replays_folder->setToolTip(replaysDisabledTooltip);
 }
 
 void BrawlbackPane::LayoutWidgets()

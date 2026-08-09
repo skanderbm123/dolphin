@@ -196,7 +196,15 @@ void CEXIBrawlback::handleLocalPadData(u8* data)
     for (int i = GAME_START_FRAME; i < FRAME_DELAY; i++)
     {
       auto pfd = CreateBlankPlayerFrameData(i, playerIdx);
-      this->remotePlayerFrameData[playerIdx].push_back(std::make_unique<PlayerFrameData>(pfd));
+      {
+        // remotePlayerFrameData is also written from ProcessRemoteFrameData
+        // on the netplay thread (under this same lock) - this match-start
+        // push runs on the CPU thread and can genuinely race with an
+        // opponent packet arriving right around match start, same class of
+        // bug as the rest of this file's remotePlayerFrameData locking.
+        std::lock_guard<std::recursive_mutex> lock(remotePadQueueMutex);
+        this->remotePlayerFrameData[playerIdx].push_back(std::make_unique<PlayerFrameData>(pfd));
+      }
       this->localPlayerFrameData.push_back(std::make_unique<PlayerFrameData>(pfd));
     }
     this->timeSync->startGame(this->numPlayers);
